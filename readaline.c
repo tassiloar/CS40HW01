@@ -1,8 +1,18 @@
+/*
+ *     readaline.c
+ *     Tassilo, Arshia
+ *     HW01
+ *     This file conatins teh readaline function that accepts a open FILE
+ * object and a location where a line is read from the file and placed in that
+ * memory location
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "readaline.h"
 #include "assert.h"
-
 #include "mem.h"
 
 size_t readaline(FILE *inputfd, char **datapp)
@@ -35,7 +45,7 @@ size_t readaline(FILE *inputfd, char **datapp)
         }
     }
 
-    if (byte == = EOF)
+    if (byte == EOF)
     {
         inputfd = NULL;
         return 0;

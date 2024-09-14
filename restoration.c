@@ -1,12 +1,21 @@
+/*
+ *     restoration.c
+ *     Tassilo, Arshia
+ *     HW01
+ *     This accepts a corrupted pgm as input and outputs it as an uncorrupted
+ * raw pgm
+ *
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "seq.h"
 #include "mem.h"
 #include "atom.h"
-#include <string.h>
 #include "assert.h"
-
+#include "stdbool.h"
 #include "readaline.h"
 #include "pnmrdr.h"
 
@@ -25,25 +34,69 @@ int isDigit(char x)
     return 0;
 }
 
-int main(int argc, char *argv[])
+void sortCharacters(struct line *new_line, char *curr_line, size_t length)
 {
-    FILE *inputfd;
+    new_line->digits = ALLOC(length);
+    char *non_digits = ALLOC(length);
 
-    assert(argc <= 2);
+    int digit_count = 0;
+    int non_digit_count = 0;
 
-    if (argc == 2)
+    for (size_t i = 0; i < length;)
     {
-        inputfd = fopen(argv[1], "rb");
-        assert(inputfd != NULL);
-    }
-    else if (argc == 1)
-    {
-        inputfd = stdin;
-        assert(inputfd != NULL);
-    }
 
+        if (isDigit(curr_line[i]))
+        {
+            char a;
+            char b;
+            char c;
+
+            if (i + 1 < length && isDigit(curr_line[i + 1]))
+            {
+
+                if (i + 2 < length && isDigit(curr_line[i + 2]))
+                {
+                    a = curr_line[i];
+                    b = curr_line[i + 1];
+                    c = curr_line[i + 2];
+                    i += 3;
+                }
+                else
+                {
+                    a = 0;
+                    b = curr_line[i];
+                    c = curr_line[i + 1];
+                    i += 2;
+                }
+            }
+            else
+            {
+                a = 0;
+                b = 0;
+                c = curr_line[i];
+                i += 1;
+            }
+
+            char res = (100 * a) + (10 * b) + c;
+
+            new_line->digits[digit_count++] = res;
+        }
+        else
+        {
+            non_digits[non_digit_count++] = curr_line[i];
+            i++;
+        }
+    }
+    new_line->digits[digit_count++] = '\0';
+    non_digits[non_digit_count++] = '\0';
+    new_line->non_digits = Atom_string(non_digits);
+
+    FREE(non_digits);
+}
+
+void readlines(Seq_T lines, FILE *inputfd)
+{
     char *curr_line = NULL;
-    Seq_T lines = Seq_new(500);
 
     size_t length;
 
@@ -54,69 +107,17 @@ int main(int argc, char *argv[])
 
         assert(new_line != NULL);
 
-        int digit_count = 0;
-        new_line->digits = ALLOC(length);
-
-        int non_digit_count = 0;
-        char *non_digits = ALLOC(length);
-
-        for (size_t i = 0; i < length;)
-        {
-
-            if (isDigit(curr_line[i]))
-            {
-                char a;
-                char b;
-                char c;
-
-                if (i + 1 < length && isDigit(curr_line[i + 1]))
-                {
-
-                    if (i + 2 < length && isDigit(curr_line[i + 2]))
-                    {
-                        a = curr_line[i];
-                        b = curr_line[i + 1];
-                        c = curr_line[i + 2];
-                        i += 3;
-                    }
-                    else
-                    {
-                        a = 0;
-                        b = curr_line[i];
-                        c = curr_line[i + 1];
-                        i += 2;
-                    }
-                }
-                else
-                {
-                    a = 0;
-                    b = 0;
-                    c = curr_line[i];
-                    i += 1;
-                }
-
-                char res = (100 * a) + (10 * b) + c;
-
-                new_line->digits[digit_count++] = res;
-            }
-            else
-            {
-                non_digits[non_digit_count++] = curr_line[i];
-                i++;
-            }
-        }
-
-        new_line->digits[digit_count++] = '\0';
-        non_digits[non_digit_count++] = '\0';
-
-        new_line->non_digits = Atom_string(non_digits);
+        sortCharacters(new_line, curr_line, length);
 
         Seq_addhi(lines, new_line);
 
         FREE(curr_line);
     }
+}
 
-    int found = 0;
+size_t findDuplicates(Seq_T lines)
+{
+    bool found = false;
     int width_found = 0;
     size_t width;
 
@@ -155,7 +156,11 @@ int main(int argc, char *argv[])
             break;
         }
     }
+    return width;
+}
 
+void outputBinary(Seq_T lines, size_t width)
+{
     printf("P5 \n");
     printf("%lu \n", width);
     printf("%i \n", Seq_length(lines));
@@ -174,10 +179,50 @@ int main(int argc, char *argv[])
             printf("\n");
         }
     }
+}
+
+void freeMemory(Seq_T lines)
+{
+    for (int i = 0; i < Seq_length(lines); i++)
+    {
+        struct line *current_line = (struct line *)Seq_get(lines, i);
+
+        FREE(current_line->digits);
+        assert(current_line->digits == NULL);
+
+        FREE(current_line);
+        assert(current_line == NULL);
+    }
+    FREE(lines);
+    assert(lines == NULL);
+}
+
+int main(int argc, char *argv[])
+{
+    FILE *inputfd;
+
+    assert(argc <= 2);
+
+    if (argc == 2)
+    {
+        inputfd = fopen(argv[1], "rb");
+        assert(inputfd != NULL);
+    }
+    else if (argc == 1)
+    {
+        inputfd = stdin;
+        assert(inputfd != NULL);
+    }
+
+    Seq_T lines = Seq_new(500);
+
+    readlines(lines, inputfd);
+
+    size_t width = findDuplicates(lines);
+
+    outputBinary(lines, width);
 
     fclose(inputfd);
-
-    (void)argc;
 
     return EXIT_SUCCESS;
 }
